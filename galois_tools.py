@@ -5,10 +5,10 @@ This module contains functions for the manipulation of matrix and scalar
 variables over the Galois field GF(2)--that is, integers modulo 2: {0,1}.
 
 FUNCTIONS IN MODULE:
-    - companion_matrix()
-    - matmul_gf2()
-    - matmul_gf2_recursion()
-    - matrix_power_gf2()
+- companion_matrix()
+- matmul_gf2()
+- matmul_gf2_recursion()
+- matrix_power_gf2()
 """
 
 ###############################################################################
@@ -167,7 +167,7 @@ def matmul_gf2_recursion(A, B, N, n):
     return matmul_gf2_recursion(matmul_gf2(A, B), B, N, n + 1)
 
 ###############################################################################
-#   Modulo-2 k'th matrix power over the Galois field GF(2) (aka F_2 or Z_2)   #
+#             Modulo-2 k'th matrix power over Galois field GF(2)              #
 ###############################################################################
 
 def matrix_power_gf2(A, k):
@@ -216,3 +216,319 @@ def matrix_power_gf2(A, k):
 
     # Call recursion matrix multiplication over GF(2)
     return matmul_gf2_recursion(A, A, k, 0)
+
+###############################################################################
+# Linear feedback shift register (LFSR) class defining recurrence over GF(2)  #
+###############################################################################
+
+class LFSR(object):
+    """
+    DESCRIPTION:
+    A linear algebraic, object-oriented implementation of a linear feedback
+    shift register (LFSR) over Galois field GF(2). Provided a set of feedback
+    polynomial coefficents, an initial (seed) state vector, and an optional
+    register ID, this class seeks the emulate the behavior of a true LFSR. In
+    lieu of integer or binary arithmetic, this class favors a linear algebraic
+    implementation of the finite field arithmetic, using matrices modulo 2.
+
+    METHODS:
+    - __init__()
+    - recurse()
+    - summary()
+    - to_str()
+    - cycle()
+    - stream()
+    """
+    #############################
+    # LFSR constructor function #
+    #############################
+
+    def __init__(self, c, seed, register_id=None):
+        """
+        DESCRIPTION:
+        This is the constructor/initializer function for the LFSR class,
+        defining all of the initial member variables for the class. No values
+        are returned from this method; it's sole purpose is designation of the
+        following member variables:
+
+        - self.feedback_polynomial: linear feedback relation coefficients
+        - self.seed: seed register state vector (initial recursion conditions)
+        - self.state: the actual LFSR bit storage, initialized with seed
+        - self.C: companion matrix defining the linear feedback relation
+        - self.ID: a unique str identifier for a given LFSR() class instance
+        - self.N: integer order of feedback polynomial & recurrence relation
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param c: feedback polynomial coefficients (register tap weights)
+        :type c: array-like (e.g., list or numpy.ndarray)
+        :returns: nothing is returned by this method
+        :rtype: None
+        """
+        # Use default register ID?...
+        if register_id is None:
+
+            # Define current UNIX/POSIX timestamp as register ID
+            self.ID = str(time()).replace('.','')
+
+        # Define feedback taps using polynomial coefficients provided
+        self.feedback_polynomial = c
+
+        # Initialize shift register state vector with seed value provided
+        self.seed = seed # Fixed, initial conditions of linear recurrence
+        self.state = seed # Initialize LFSR state vector with seed value
+
+        # Define companion matrix for linear recurrence relation
+        self.C = companion_matrix(self.feedback_polynomial)
+
+        # Initialize linear transition matrix
+        self.T = self.C # (companion matrix)
+
+        # Define the order of the feedback polynomial (state length)
+        self.N = len(self.feedback_polynomial) # (units = bits)
+
+        # Epoch index initialization @ zero
+        self.epoch = 0
+
+    ######################################################
+    # Iterate LFSR recurrence for fixed number of epochs #
+    ######################################################
+
+    def recurse(self, num_epoch=1):
+        """
+        DESCRIPTION:
+        Iterate register some fixed num_epoch number of cycles/epochs.
+        There are two mechanisms available for implementation:
+        (i) multiplication of the state vector by the (num_epoch)'th
+            power of the companion matrix self.C;
+        (ii) multiply the initial state vector (i.e., self.seed) by a
+            net/aggregated transition matrix self.T, which is depend-
+            ent on the current epoch/cycle index.
+        Of these two choices, we opt for (ii), tracking a represen-
+        tation of the net transition matrix self.T across all LFSR
+        epochs or iterations. This is effected by multiplying the state
+        vector self.seed by the matrix power of a transition matrix
+        which is updated as self.C to the (self.epoch)'th matrix power.
+        The state vector at the current epoch, self.epoch, is thus
+        calculated as lefthand product of net transition matrix self.T
+        and the initial state vector self.seed. No values are returned.
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param num_epoch: number of epochs/cycles to recurse LFSR by
+        :type num_epoch: int
+        :returns: nothing is returned by this method
+        :rtype: None
+        """
+        # Increment total epoch count/track
+        self.epoch += num_epoch
+
+        # Update current transition matrix (fixed # of epochs/cycles)
+        self.T = matmul_gf2(self.T,matrix_power_gf2(self.C,num_epoch))
+
+        # Apply num_epoch'th power of companion matrix to state
+        self.state = matmul_gf2(self.T, self.state)
+
+    #######################################
+    # Print LFSR variables summary/digest #
+    #######################################
+
+    def summary(self):
+        """
+        DESCRIPTION:
+        This method pretty-prints a summary/digest of all of the member 
+        variables of this LFSR class instance (nothing is returned).
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :returns: nothing is returned by this method
+        :rtype: None
+        """
+        # Print header/banner above LFSR summary
+        print('##################################################')
+        print('# LINEAR FEEDBACK SHIFT REGISTER (LFSR) SUMMARY: #')
+        print('##################################################')
+
+        # Separate header/banner from recurrence order
+        print('__________________________________________________')
+
+        # Recurrence order
+        print('ORDER:', self.N)
+
+        # Separate recurrence order from epoch
+        print('__________________________________________________')
+
+        # Current recurrence epoch/index
+        print('EPOCH:', self.epoch)
+
+        # Separate epoch from register ID
+        print('__________________________________________________')
+
+        # Print register ID
+        print('ID:', self.ID)
+
+        # Separate register ID from register state
+        print('__________________________________________________')
+
+        # Print shift register state vector
+        print('STATE:', self.to_str(self.state))
+
+        # Separate register state from register seed
+        print('__________________________________________________')
+
+        # Print seed state vector (i.e., initial conditions)
+        print('SEED: ', self.to_str(self.seed))
+
+        # Separate register seed from recurrence companion matrix
+        print('__________________________________________________')
+
+        # Print companion matrix of recurrence relation
+        print('COMPANION MATRIX:')
+        [print('      ', self.to_str(row)) for row in self.C]
+
+        # Separate recurrence companion matrix from transition matrix
+        print('__________________________________________________')
+
+        # Print net transition matrix from seed to current state
+        print('TRANSITION MATRIX:')
+        [print('      ', self.to_str(row)) for row in self.T]
+
+        # Separation of LFSR summary from anything printed after
+        print('__________________________________________________')
+        print('')
+
+    ####################################################
+    # Convert binary vector b to string representation #
+    ####################################################
+
+    def to_str(self,b):
+        """
+        DESCRIPTION:
+        This function accepts a 1 x L binary vector, for an arbitrary
+        integer length L, and returns a length-L string representation
+        of the binary input vector b (assumed to be a numpy array).
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param b: binary numpy array for conversion to str
+        :type b: numpy.ndarray
+        :returns: string of '0' and '1' chars via input vector b
+        :rtype: str
+        """
+        # Return a string-cast binary vector from numpy array b
+        return ''.join([str(int(bit)) for bit in b])
+
+    ############################################
+    # Cycle the shift register by single epoch #
+    ############################################
+
+    def cycle(self,num_epoch=1,verbose=False):
+        """
+        DESCRIPTION:
+        Recurse the linear feedback shift register state vector 1
+        cycle (1 epoch). A single cycle corresponds mathematically
+        to to multiplication by a companion matrix over Galois field
+        GF(2). In verbose mode, this function prints self.state.
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param num_epoch: number of epochs/cycles to recurse LFSR by
+        :type num_epoch: int
+        :param verbose: controls the printing of self.state
+        :type verbose: bool
+        :returns: nothing is returned by this method
+        :rtype: None
+        """
+        # For each n'th epoch/cycle...
+        for n in range(num_epoch):
+
+            # Cycle LFSR 1x (i.e., single epoch)
+            self.recurse() # (default: num_epoch=1)
+
+            # Verbose mode...
+            if verbose:
+
+                # Print state vector as string...
+                print(self.to_str(self.state))
+
+    #####################################################
+    # Stream bit(s) from linear feedback shift register #
+    #####################################################
+
+    def stream(self,num_bits=1,tap=-1):
+        """
+        DESCRIPTION:
+        Stream 1 or more bits from the linear feedback shift register
+        (LFSR) by tapping a single index of the register and emit-
+        ting the bit at that index over a fixed number of epochs. The
+        number of epochs is 1:1 with the specified num_bits to be
+        buffered and returned by this function. If an invalid number
+        of bits is specified or an invalid tap index is specified,
+        the function prints a warning message and returns None. If a
+        single bit is to be emitted, this function returns an integer.
+        Otherwise, this function returns a numpy array of integers.
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param num_bits: # of epochs <==> # of bits output
+        :type num_bits: int
+        :param tap: state index tapped to produce stream
+        :type tap: int
+        :returns: nothing is returned by this method
+        :rtype: None
+        """
+        ###################
+        # Validate inputs #
+        ###################
+
+        # Invalid tap index
+        if tap >= self.N:
+
+            # Print a warning about invalid tap
+            print('Invalid tap index: must be <= self.N.')
+            return None
+
+        # Invalid number of bits?...
+        if num_bits < 1:
+
+            # Print a warning about invalid number of bits
+            print('Invalid number of bits: must be >= 1.')
+            return None
+
+        #############################################
+        # Emit single bit from LFSR (cycle 1 epoch) #
+        #############################################
+
+        # Emit single bit?...
+        if num_bits == 1:
+
+            # Cycle LFSR 1x (i.e., single epoch)
+            self.recurse() # (default: num_epoch=1)
+
+            # Return tapped state vector bit (as int)
+            return int(self.state[tap]) # (0 or 1)
+
+        # Binary stream storage
+        buffer = zeros([num_bits,],dtype='uint64')
+
+        ###########################################
+        # Stream & buffer multiple bits from LFSR #
+        ###########################################
+
+        # For each n'th bit required...
+        for n in range(num_bits):
+
+            # Cycle LFSR 1x (i.e., single epoch)
+            self.recurse() # (default: num_epoch=1)
+
+            # Return tapped state vector bit (as int)
+            buffer[n] = int(self.state[tap]) # (0 or 1)
+
+        # Return buffered bit stream
+        return buffer
