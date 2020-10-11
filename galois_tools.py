@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+AUTHOR:
+Ryan Burns
+
 DESCRIPTION:
 This module contains functions for the manipulation of matrix and scalar
 variables over the Galois field GF(2)--that is, integers modulo 2: {0,1}.
@@ -10,12 +13,16 @@ FUNCTIONS IN MODULE:
 - matmul_gf2_recursion()
 - matrix_power_gf2()
 """
-
 ###############################################################################
 #                            Import dependencies                              #
 ###############################################################################
+
+# Random helpful tools
+from time import time
+
+# Numpy
 from numpy import matmul, transpose, identity, hstack, vstack, shape, zeros
-from numpy import expand_dims
+from numpy import expand_dims, array
 
 ###############################################################################
 #  Form a companion matrix from a vector of polynomial feedback coefficients  #
@@ -218,10 +225,112 @@ def matrix_power_gf2(A, k):
     return matmul_gf2_recursion(A, A, k, 0)
 
 ###############################################################################
+#   Load primitive polynomial coefficients [over GF(2)] of specified degree   #
+###############################################################################
+
+def read_polynomials_from_file(deg=32, path='./'):
+    """
+    DESCRIPTION:
+    Load a list of primitive polynomial coefficients from file, stored as hex
+    strings (using a lowercase convention for integers a-f)
+
+    INPUTS & OUTPUTS:
+    :param deg: specify polynomial degree (aka recursion order)
+    :type deg: int
+    :param path: specify path at which coefficient .txt file is stored
+    :type path: str
+    :returns: list of hexadecimal (str) primitive polynomial coefficients
+    :rtype: list, dtype=str
+    """
+    f = open(path + str(deg) + '.txt', 'r')
+    coefficients = f.read()
+    f.close()
+    return [
+        ('0x' + coeff.lower()) for coeff in coefficients.split('\n')
+        if len(coeff) > 0]
+
+###############################################################################
+#        Convert hexadecimal integer to binary string representation          #
+###############################################################################
+
+def hex2bin(hex_string, nbits=None):
+    """
+    DESCRIPTION:
+    This function accepts a hexadecimal string (beginning with characters '0x'
+    and having lowercase formatting for integers a-e) and converts it to a
+    binary string representation. Optionally, a fixed number of bits can be
+    specified, enforcing that the output bit vector have a certain fixed
+    length. The default behavior is to set this argument to None, opting for
+    the shortest possible binary string representation to be returned.
+
+    INPUTS & OUTPUTS:
+    :param hex_string: hexadecimal integer specified as a string
+    :type hex_string: str
+    :param nbits: specify the length of the bit vector to be returned
+    :type nbits: int or None
+    :returns: binary string representation of hexadecimal (str) integer
+    :rtype: str
+    """
+    # Check that hex_string is valid...
+    if hex_string[0:2] != '0x':
+
+        # Print invalid string warning
+        print('Input hex_string must be a hex string beginning with 0x.')
+        return None
+
+    # If no specified bit vector length...
+    if nbits is None:
+
+        # Return minimum possible total bits
+        return bin(int(hex_string, 16))
+
+    # Return the bit vector of specified length nbits
+    return bin(int(hex_string, 16)).zfill(nbits)
+
+###############################################################################
+#     Convert binary string representation to binary numpy array (vector)     #
+###############################################################################
+
+def str2vec(b):
+    """
+    DESCRIPTION:
+    This function takes a binary number b (string representation with leading
+    '0b' characters) and casts it as a binary numpy array (bit vector). The
+    array has dtype='int64' and length equal to that of input bit string b.
+
+    INPUTS & OUTPUTS:
+    :param b: string representation of bit vector (or polynomial over GF(2))
+    :type b: str
+    :returns: a binary numpy array representation of the input bit string
+    :rtype: numpy.ndarray, dtype='int64'
+    """
+    return array([int(bit) for bit in b.replace('0b', '')])
+
+###############################################################################
+#    Convert binary vector representation to binary string representation     #
+###############################################################################
+
+def vec2str(b):
+    """
+    DESCRIPTION:
+    This function accepts a 1 x L binary vector, for an arbitrary integer
+    length L, and returns a length-L string representation of the binary
+    input vector b (assumed to be a numpy array).
+
+    INPUTS & OUTPUTS:
+    :param b: binary numpy array for conversion to str
+    :type b: numpy.ndarray
+    :returns: string of '0' and '1' chars via input vector b
+    :rtype: str
+    """
+    # Return a string-cast binary vector from numpy array b
+    return ''.join([str(int(bit)) for bit in b])
+
+###############################################################################
 # Linear feedback shift register (LFSR) class defining recurrence over GF(2)  #
 ###############################################################################
 
-class LFSR(object):
+class LinearAlgebraicLFSR():
     """
     DESCRIPTION:
     A linear algebraic, object-oriented implementation of a linear feedback
@@ -235,7 +344,6 @@ class LFSR(object):
     - __init__()
     - recurse()
     - summary()
-    - to_str()
     - cycle()
     - stream()
     """
@@ -255,14 +363,19 @@ class LFSR(object):
         - self.seed: seed register state vector (initial recursion conditions)
         - self.state: the actual LFSR bit storage, initialized with seed
         - self.C: companion matrix defining the linear feedback relation
+        - self.T: transition matrix defining the cumulative linear mapping
         - self.ID: a unique str identifier for a given LFSR() class instance
         - self.N: integer order of feedback polynomial & recurrence relation
 
         INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
+        :param self: this particular LinearAlgebraicLFSR() class instance
+        :type self: __main__.LinearAlgebraicLFSR
         :param c: feedback polynomial coefficients (register tap weights)
         :type c: array-like (e.g., list or numpy.ndarray)
+        :param seed: initial register state as an [base-10] integer
+        :type seed: int
+        :param register_id: a unique register identifier (string)
+        :type register_id: str or None
         :returns: nothing is returned by this method
         :rtype: None
         """
@@ -270,7 +383,7 @@ class LFSR(object):
         if register_id is None:
 
             # Define current UNIX/POSIX timestamp as register ID
-            self.ID = str(time()).replace('.','')
+            self.ID = str(time()).replace('.', '')
 
         # Define feedback taps using polynomial coefficients provided
         self.feedback_polynomial = c
@@ -315,8 +428,8 @@ class LFSR(object):
         and the initial state vector self.seed. No values are returned.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
+        :param self: this particular LinearAlgebraicLFSR() class instance
+        :type self: __main__.LinearAlgebraicLFSR
         :param num_epoch: number of epochs/cycles to recurse LFSR by
         :type num_epoch: int
         :returns: nothing is returned by this method
@@ -326,7 +439,7 @@ class LFSR(object):
         self.epoch += num_epoch
 
         # Update current transition matrix (fixed # of epochs/cycles)
-        self.T = matmul_gf2(self.T,matrix_power_gf2(self.C,num_epoch))
+        self.T = matmul_gf2(self.T, matrix_power_gf2(self.C, num_epoch))
 
         # Apply num_epoch'th power of companion matrix to state
         self.state = matmul_gf2(self.T, self.state)
@@ -338,12 +451,12 @@ class LFSR(object):
     def summary(self):
         """
         DESCRIPTION:
-        This method pretty-prints a summary/digest of all of the member 
+        This method pretty-prints a summary/digest of all of the member
         variables of this LFSR class instance (nothing is returned).
 
         INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
+        :param self: this particular LinearAlgebraicLFSR() class instance
+        :type self: __main__.LinearAlgebraicLFSR
         :returns: nothing is returned by this method
         :rtype: None
         """
@@ -374,59 +487,47 @@ class LFSR(object):
         print('__________________________________________________')
 
         # Print shift register state vector
-        print('STATE:', self.to_str(self.state))
+        print('STATE:', vec2str(self.state))
 
         # Separate register state from register seed
         print('__________________________________________________')
 
         # Print seed state vector (i.e., initial conditions)
-        print('SEED: ', self.to_str(self.seed))
+        print('SEED: ', vec2str(self.seed))
 
         # Separate register seed from recurrence companion matrix
         print('__________________________________________________')
 
         # Print companion matrix of recurrence relation
         print('COMPANION MATRIX:')
-        [print('      ', self.to_str(row)) for row in self.C]
+
+        # For each row in the companion matrix...
+        for row in self.C:
+
+            # Print row (indented)
+            print('      ', vec2str(row))
 
         # Separate recurrence companion matrix from transition matrix
         print('__________________________________________________')
 
         # Print net transition matrix from seed to current state
         print('TRANSITION MATRIX:')
-        [print('      ', self.to_str(row)) for row in self.T]
+
+        # For each row in the transition matrix...
+        for row in self.T:
+
+            # Print row (indented)
+            print('      ', vec2str(row))
 
         # Separation of LFSR summary from anything printed after
         print('__________________________________________________')
         print('')
 
-    ####################################################
-    # Convert binary vector b to string representation #
-    ####################################################
-
-    def to_str(self,b):
-        """
-        DESCRIPTION:
-        This function accepts a 1 x L binary vector, for an arbitrary
-        integer length L, and returns a length-L string representation
-        of the binary input vector b (assumed to be a numpy array).
-
-        INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
-        :param b: binary numpy array for conversion to str
-        :type b: numpy.ndarray
-        :returns: string of '0' and '1' chars via input vector b
-        :rtype: str
-        """
-        # Return a string-cast binary vector from numpy array b
-        return ''.join([str(int(bit)) for bit in b])
-
     ############################################
     # Cycle the shift register by single epoch #
     ############################################
 
-    def cycle(self,num_epoch=1,verbose=False):
+    def cycle(self, num_epoch=1, verbose=False):
         """
         DESCRIPTION:
         Recurse the linear feedback shift register state vector 1
@@ -435,8 +536,8 @@ class LFSR(object):
         GF(2). In verbose mode, this function prints self.state.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
+        :param self: this particular LinearAlgebraicLFSR() class instance
+        :type self: __main__.LinearAlgebraicLFSR
         :param num_epoch: number of epochs/cycles to recurse LFSR by
         :type num_epoch: int
         :param verbose: controls the printing of self.state
@@ -444,8 +545,8 @@ class LFSR(object):
         :returns: nothing is returned by this method
         :rtype: None
         """
-        # For each n'th epoch/cycle...
-        for n in range(num_epoch):
+        # For each _'th epoch/cycle...
+        for _ in range(num_epoch):
 
             # Cycle LFSR 1x (i.e., single epoch)
             self.recurse() # (default: num_epoch=1)
@@ -454,13 +555,13 @@ class LFSR(object):
             if verbose:
 
                 # Print state vector as string...
-                print(self.to_str(self.state))
+                print(vec2str(self.state))
 
     #####################################################
     # Stream bit(s) from linear feedback shift register #
     #####################################################
 
-    def stream(self,num_bits=1,tap=-1):
+    def stream(self, num_bits=1, tap=-1):
         """
         DESCRIPTION:
         Stream 1 or more bits from the linear feedback shift register
@@ -474,8 +575,8 @@ class LFSR(object):
         Otherwise, this function returns a numpy array of integers.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LFSR() class instance
-        :type self: __main__.LFSR
+        :param self: this particular LinearAlgebraicLFSR() class instance
+        :type self: __main__.LinearAlgebraicLFSR
         :param num_bits: # of epochs <==> # of bits output
         :type num_bits: int
         :param tap: state index tapped to produce stream
@@ -515,7 +616,7 @@ class LFSR(object):
             return int(self.state[tap]) # (0 or 1)
 
         # Binary stream storage
-        buffer = zeros([num_bits,],dtype='uint64')
+        buffer = zeros([num_bits,], dtype='uint64')
 
         ###########################################
         # Stream & buffer multiple bits from LFSR #
