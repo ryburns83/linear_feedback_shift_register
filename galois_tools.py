@@ -532,8 +532,8 @@ class LinearAlgebraicLFSR():
         DESCRIPTION:
         Recurse the linear feedback shift register state vector 1
         cycle (1 epoch). A single cycle corresponds mathematically
-        to to multiplication by a companion matrix over Galois field
-        GF(2). In verbose mode, this function prints self.state.
+        to multiplication by a companion matrix over Galois field
+        GF(2). In verbose mode, this method prints self.state.
 
         INPUTS & OUTPUTS:
         :param self: this particular LinearAlgebraicLFSR() class instance
