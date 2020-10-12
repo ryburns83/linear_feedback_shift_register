@@ -20,209 +20,8 @@ FUNCTIONS IN MODULE:
 # Random helpful tools
 from time import time
 
-# Numpy
-from numpy import matmul, transpose, identity, hstack, vstack, shape, zeros
-from numpy import expand_dims, array
-
-###############################################################################
-#  Form a companion matrix from a vector of polynomial feedback coefficients  #
-###############################################################################
-
-def companion_matrix(c, config='galois'):
-    """
-    DESCRIPTION:
-    This function computes a companion matrix corresponding to the linear
-    recurrence relation with polynomial feedback tap coefficients defined by
-    vector c = [c0,c1,c2,...,cN]^T. For general information on companion mat-
-    rices, visit: https://en.wikipedia.org/wiki/Companion_matrix. For more
-    information pertaining to this particular implementation, see: https://...
-    ...en.wikipedia.org/wiki/Linear-feedback_shift_register#Matrix_forms. In
-    addition to a set of (N + 1) polynomial coefficients in vector c, this
-    function accepts a config parameter ('galois' by default) which specifies
-    whether the Galois or Fibonacci form of companion matrix / shift register
-    is desired. This function accommodates both behaviors, and in each case,
-    constructs a companion matrix as a block matrix comprised of 3 blocks.
-    Block 1 is an N x N identity matrix. Block 2 is a length-N zero vector.
-    Block 3 is the input vector, c, of polynomial coefficients defining the
-    linear recurrence relation. This function will accept c as either a list
-    or numpy array; the latter is allowed to have either shape (N + 1,) or
-    shape (N + 1,1). Upon construction, the companion matrix is returned.
-
-    INPUTS & OUTPUTS:
-    :param c: polynomial feedback coeff. vector of shape (N + 1,) or (N + 1,1)
-    :type c: array-like (e.g., numpy.ndarray or list)
-    :param config: specify recurrence format; options: {'galois','fibonacci'}
-    :type config: str
-    :returns: (N + 1) x (N + 1) companion matrix defining a linear recurrence
-    :rtype: numpy.ndarray
-    """
-    ###################################################
-    # Compute input coefficient vector dimensionality #
-    ###################################################
-    # Length of input vector c
-    N = len(c) - 1
-
-    # Check if singleton dim. needed...
-    if len(shape(c)) == 1:
-
-        # Make c a proper (N + 1) x 1 vector
-        c = expand_dims(c, axis=1)
-
-    ################################
-    # Define identity matrix block #
-    ################################
-
-    # Block 1: an N x N identity matrix
-    I = identity(N)
-
-    ###############################################
-    # Build companion matrix using form specified #
-    ###############################################
-
-    # Choice 1: Galois form...
-    if config == 'galois':
-
-        # Block 2: 1 x N zero vector
-        zero_vector = zeros([1, N])
-
-        # Return companion matrix (Galois configuration)
-        return hstack((c, vstack((I, zero_vector))))
-
-    # Choice 2: Fibonacci form...
-    if config == 'fibonacci':
-
-        # Block 2: N x 1 zero vector
-        zero_vector = zeros([N, 1])
-
-        # Return companion matrix (Fibonacci configuration)
-        return vstack((hstack((zero_vector, I)), transpose(c)))
-
-    # Invalid config argument notification & return
-    print('Please provide valid config argument to companion_matrix().')
-    print('Valid options:')
-    print('    - "galois" (default)')
-    print('    - "fibonacci"')
-    return None
-
-###############################################################################
-#         Modulo-2 matrix multiplication over the Galois field GF(2)          #
-###############################################################################
-
-def matmul_gf2(A, B):
-    """
-    DESCRIPTION:
-    This function computes the [binary] matrix product AB over Galois field
-    GF(2); that is, AB mod 2. It is assumed that input arguments A and B are
-    both square binary matrices (i.e., with elements 0 or 1 in GF(2)). For
-    more information on Galois fields, navigate to the following Wikipedia
-    page: https://en.wikipedia.org/wiki/Finite_field (interesting topic). The
-    output matrix is binary and of identical dimensionality to inputs A and B.
-
-    INPUTS & OUTPUTS:
-    :param A: left-hand matrix in product AB (over field GF(2))
-    :type A: numpy.ndarray
-    :param B: right-hand matrix in product AB (over field GF(2))
-    :type B: numpy.ndarray
-    :returns: product of matrices A and B modulo 2 (over Galois field GF(2))
-    :rtype: numpy.ndarray
-    """
-    # Return matrix product AB (mod 2)
-    return matmul(A, B) % 2
-
-###############################################################################
-#          Modulo-2 matrix matrix power over the Galois field GF(2)           #
-###############################################################################
-
-def matmul_gf2_recursion(A, B, N, n):
-    """
-    DESCRIPTION:
-    This function executes a recurrence relation A <-- AB (mod 2) over indices
-    ranging from lower bound n to upper bound N. That is, for indices k = n,
-    n + 1, ..., N - 2, N - 1, we overwrite the binary square matrix A as the
-    matrix product AB modulo 2 (i.e., AB over Galois field GF(2)). The closed
-    form solution eventually output by this function is AB^(N - 1 - n), for
-    some lower & upper bounds [n,N]. So if initial index n = 0, the result of
-    the recursion could be written in closed form as AB^(N - 1). This function
-    is implemented by calling itself on matrices A <-- AB (mod 2) and B <-- B,
-    for an incremented/updated index n <-- n + 1 (and fixed upper bound N).
-    The stopping condition for the recursive call is index n equaling N - 1, at
-    which point this function computes a final product AB^{N - 2 - n}B (mod 2)
-    to arrive at the final result. It is assumed that matrices A and B are
-    binary (i.e., with elements in GF(2)). For matrix multiplication over
-    GF(2), this function makes use of function matmul_gf2() in this module.
-    The returned matrix AB^(N - 1 - n) is also binary and square like A and B.
-
-    INPUTS & OUTPUTS:
-    :param A: left-hand matrix in product AB (over field GF(2))
-    :type A: numpy.ndarray
-    :param B: right-hand matrix in product AB (over field GF(2))
-    :type B: numpy.ndarray
-    :param N: this function outputs AB^(N-1-n) mod 2, for upper bound N
-    :type N: int
-    :param n: lower bound on index tracking the latest matrix power computed
-    :type n: int
-    :returns: if complete, outputs AB^(N-1-n) mod 2; self-call, if incomplete
-    :rtype: numpy.ndarray or recursive call (depending on value of n)
-    """
-    # Terminate recursion @ AB^(N-1)...
-    if n == N - 1:
-
-        # Final matrix product over GF(2)
-        return matmul_gf2(A, B)
-
-    # Call recursive matrix product A*B*B*B... = AB^k over GF(2)
-    return matmul_gf2_recursion(matmul_gf2(A, B), B, N, n + 1)
-
-###############################################################################
-#             Modulo-2 k'th matrix power over Galois field GF(2)              #
-###############################################################################
-
-def matrix_power_gf2(A, k):
-    """
-    DESCRIPTION:
-    This function leverages the recursive function matmul_gf2_recursion() for
-    computation of the binary matrix power A^k (mod 2), i.e., A^k over Galois
-    field GF(2). There are 2 edge cases which this function handles manually.
-    First, the zero'th power of any elligible N x N matrix, A, is the N x N
-    identity matrix. The first power is, trivially, the original matrix A.
-    This holds true over GF(2). All other cases are handled via recursive mat-
-    rix multiplication: ((((A x A mod 2) x A mod 2) x A mod 2)... x A mod 2).
-    On completion of the recursion, the N x N binary result is returned.
-
-    INPUTS & OUTPUTS:
-    :param A: binary matrix of which we are taking the k'th power (modulo 2)
-    :type A: numpy.ndarray
-    :param k: power of binary matrix A this function computes (via recursion)
-    :type k: int
-    :returns: binary matrix power A^k (mod 2), taken over Galois field GF(2)
-    :rtype: numpy.ndarray
-    """
-    ###############################
-    # 0'th power: identity matrix #
-    ###############################
-
-    # Base case: A^0 = I
-    if k == 0:
-
-        # Return identity matrix I
-        return identity(A.shape[0])
-
-    ################################
-    # 1st power: original matrix A #
-    ################################
-
-    # Trival case: A^1 = A
-    if k == 1:
-
-        # Return original matrix A
-        return A
-
-    #########################################################
-    # k'th power, k > 1: compute matrix power via recursion #
-    #########################################################
-
-    # Call recursion matrix multiplication over GF(2)
-    return matmul_gf2_recursion(A, A, k, 0)
+# Numpy functions
+from numpy import array, zeros
 
 ###############################################################################
 #   Load primitive polynomial coefficients [over GF(2)] of specified degree   #
@@ -327,21 +126,58 @@ def vec2str(b):
     return ''.join([str(int(bit)) for bit in b])
 
 ###############################################################################
+#     Convert a non-negative integer to its binary string representation      #
+###############################################################################
+
+def int2bin(integer, num_bits=None):
+    """
+    DESCRIPTION:
+    This function accepts a non-negative integer and returns its binary string
+    representation, optionally requiring that the bitstring returned be of
+    specified length num_bits. The returned binary integer has prefix '0b'.
+
+    INPUTS & OUTPUTS:
+    :param integer: non-negative integer to be converted to a bitstring
+    :type integer: int
+    :param num_bits: (optional) required length of the output bitstring
+    :type num_bits: int
+    :returns: binary string representation of integer
+    :rtype: str
+    """
+    # Non-negative integer?...
+    if integer < 0:
+
+        # Print negative integer warning and return
+        print('Invalid integer < 0 provided to int2bin().')
+        return
+
+    # No fixed bitstring length specified...
+    if num_bits is None:
+
+        # Default: wrapper for bin()
+        return bin(integer)
+
+    # Return binary representation of integer @ w/ bitstring length
+    return '0b' + bin(integer).replace('0b', '').zfill(num_bits)
+
+###############################################################################
 # Linear feedback shift register (LFSR) class defining recurrence over GF(2)  #
 ###############################################################################
 
-class LinearAlgebraicLFSR():
+class LFSR():
     """
     DESCRIPTION:
-    A linear algebraic, object-oriented implementation of a linear feedback
-    shift register (LFSR) over Galois field GF(2). Provided a set of feedback
-    polynomial coefficents, an initial (seed) state vector, and an optional
-    register ID, this class seeks the emulate the behavior of a true LFSR. In
-    lieu of integer or binary arithmetic, this class favors a linear algebraic
-    implementation of the finite field arithmetic, using matrices modulo 2.
+    A object-oriented implementation of a linear feedback shift register (LFSR)
+    over Galois field GF(2). Provided a set of feedback polynomial coefficents,
+    as an N-bit integer (for some fixed bit length / order N) an initial
+    length-N (seed) state vector, this class seeks the emulate the behavior of
+    a true LFSR. In lieu of linear algebraic compsanion-matrix-based implemen-
+    tation, this class favors a number theoretic implementation, leveraging
+    integer (decimal), binary, & hexadecimal representation of N-bit integers.
 
     METHODS:
     - __init__()
+    - pretty_print()
     - recurse()
     - summary()
     - cycle()
@@ -351,7 +187,7 @@ class LinearAlgebraicLFSR():
     # LFSR constructor function #
     #############################
 
-    def __init__(self, c, seed, register_id=None):
+    def __init__(self, mask, seed, order, register_id=None):
         """
         DESCRIPTION:
         This is the constructor/initializer function for the LFSR class,
@@ -362,18 +198,18 @@ class LinearAlgebraicLFSR():
         - self.feedback_polynomial: linear feedback relation coefficients
         - self.seed: seed register state vector (initial recursion conditions)
         - self.state: the actual LFSR bit storage, initialized with seed
-        - self.C: companion matrix defining the linear feedback relation
-        - self.T: transition matrix defining the cumulative linear mapping
         - self.ID: a unique str identifier for a given LFSR() class instance
         - self.N: integer order of feedback polynomial & recurrence relation
 
         INPUTS & OUTPUTS:
-        :param self: this particular LinearAlgebraicLFSR() class instance
-        :type self: __main__.LinearAlgebraicLFSR
-        :param c: feedback polynomial coefficients (register tap weights)
-        :type c: array-like (e.g., list or numpy.ndarray)
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param mask: feedback polynomial coefficients (register tap weights)
+        :type mask: int
         :param seed: initial register state as an [base-10] integer
         :type seed: int
+        :param order: register length / feedback polynomial deg. (in bits)
+        :type order: int
         :param register_id: a unique register identifier (string)
         :type register_id: str or None
         :returns: nothing is returned by this method
@@ -386,23 +222,39 @@ class LinearAlgebraicLFSR():
             self.ID = str(time()).replace('.', '')
 
         # Define feedback taps using polynomial coefficients provided
-        self.feedback_polynomial = c
+        self.feedback_polynomial = mask # (toggled feedback mask)
 
         # Initialize shift register state vector with seed value provided
         self.seed = seed # Fixed, initial conditions of linear recurrence
         self.state = seed # Initialize LFSR state vector with seed value
 
-        # Define companion matrix for linear recurrence relation
-        self.C = companion_matrix(self.feedback_polynomial)
-
-        # Initialize linear transition matrix
-        self.T = self.C # (companion matrix)
-
         # Define the order of the feedback polynomial (state length)
-        self.N = len(self.feedback_polynomial) # (units = bits)
+        self.N = order # (units = bits)
 
         # Epoch index initialization @ zero
         self.epoch = 0
+
+    ##################################################
+    # Pretty-print bitstring of assumed order self.N #
+    ##################################################
+
+    def pretty_print(self, b):
+        """
+        DESCRIPTION:
+        This method pretty-prints the binary string representation of the
+        binary vector, removing the '0b' prefix and padding to bit vector
+        length / order self.N. This method has 1 arg & returns 1 value.
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param b: binary string representation of format '0b...'
+        :type b: str
+        :returns: binary string lacking '0b' prefix (e.g., '11010100')
+        :rtype: str
+        """
+        # Return length-self.N bitstring (assumes printing external)
+        return bin(b).replace('0b', '').zfill(self.N)
 
     ######################################################
     # Iterate LFSR recurrence for fixed number of epochs #
@@ -411,25 +263,14 @@ class LinearAlgebraicLFSR():
     def recurse(self, num_epoch=1):
         """
         DESCRIPTION:
-        Iterate register some fixed num_epoch number of cycles/epochs.
-        There are two mechanisms available for implementation:
-        (i) multiplication of the state vector by the (num_epoch)'th
-            power of the companion matrix self.C;
-        (ii) multiply the initial state vector (i.e., self.seed) by a
-            net/aggregated transition matrix self.T, which is depend-
-            ent on the current epoch/cycle index.
-        Of these two choices, we opt for (ii), tracking a represen-
-        tation of the net transition matrix self.T across all LFSR
-        epochs or iterations. This is effected by multiplying the state
-        vector self.seed by the matrix power of a transition matrix
-        which is updated as self.C to the (self.epoch)'th matrix power.
-        The state vector at the current epoch, self.epoch, is thus
-        calculated as lefthand product of net transition matrix self.T
-        and the initial state vector self.seed. No values are returned.
+        This function executes the linear feedback shift register (LFSR)
+        recursion for a fixed number of time epochs (default, 1 epoch).
+        A global self.epoch counter is incremented, the register stored
+        in self.state is updated via recursion, and nothing is returned.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LinearAlgebraicLFSR() class instance
-        :type self: __main__.LinearAlgebraicLFSR
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
         :param num_epoch: number of epochs/cycles to recurse LFSR by
         :type num_epoch: int
         :returns: nothing is returned by this method
@@ -438,11 +279,20 @@ class LinearAlgebraicLFSR():
         # Increment total epoch count/track
         self.epoch += num_epoch
 
-        # Update current transition matrix (fixed # of epochs/cycles)
-        self.T = matmul_gf2(self.T, matrix_power_gf2(self.C, num_epoch))
+        # For each epoch...
+        for _ in range(num_epoch):
 
-        # Apply num_epoch'th power of companion matrix to state
-        self.state = matmul_gf2(self.T, self.state)
+            # Least significant bit
+            LSB = self.state & 0x1
+
+            # Shift register to right
+            self.state >>= 1
+
+            # If LSB is 1...
+            if LSB:
+
+                # X0R register with feedback polynomial mask
+                self.state ^= self.feedback_polynomial
 
     #######################################
     # Print LFSR variables summary/digest #
@@ -455,8 +305,8 @@ class LinearAlgebraicLFSR():
         variables of this LFSR class instance (nothing is returned).
 
         INPUTS & OUTPUTS:
-        :param self: this particular LinearAlgebraicLFSR() class instance
-        :type self: __main__.LinearAlgebraicLFSR
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
         :returns: nothing is returned by this method
         :rtype: None
         """
@@ -465,61 +315,61 @@ class LinearAlgebraicLFSR():
         print('# LINEAR FEEDBACK SHIFT REGISTER (LFSR) SUMMARY: #')
         print('##################################################')
 
-        # Separate header/banner from recurrence order
-        print('__________________________________________________')
-
-        # Recurrence order
-        print('ORDER:', self.N)
-
-        # Separate recurrence order from epoch
-        print('__________________________________________________')
-
-        # Current recurrence epoch/index
-        print('EPOCH:', self.epoch)
-
-        # Separate epoch from register ID
+        # Separator
         print('__________________________________________________')
 
         # Print register ID
         print('ID:', self.ID)
 
-        # Separate register ID from register state
+        # Separator
         print('__________________________________________________')
 
-        # Print shift register state vector
-        print('STATE:', vec2str(self.state))
+        # Current recurrence epoch/index
+        print('EPOCH:', self.epoch)
 
-        # Separate register state from register seed
+        # Separate register ID from register order
         print('__________________________________________________')
 
-        # Print seed state vector (i.e., initial conditions)
-        print('SEED: ', vec2str(self.seed))
+        # Recurrence order
+        print('ORDER:', self.N)
 
-        # Separate register seed from recurrence companion matrix
+        # Separator
         print('__________________________________________________')
 
-        # Print companion matrix of recurrence relation
-        print('COMPANION MATRIX:')
+        # Print shift register tap polynomial (binary)
+        print('TAPS (BINARY):', self.pretty_print(self.feedback_polynomial))
 
-        # For each row in the companion matrix...
-        for row in self.C:
+        # Print shift register tap polynomial (int format)
+        print('TAPS (DECIMAL):', self.feedback_polynomial)
 
-            # Print row (indented)
-            print('      ', vec2str(row))
+        # Print shift register state polynomial (hexadecimal)
+        print('TAPS (HEXADECIMAL):', hex(self.feedback_polynomial))
 
-        # Separate recurrence companion matrix from transition matrix
+        # Separator
         print('__________________________________________________')
 
-        # Print net transition matrix from seed to current state
-        print('TRANSITION MATRIX:')
+        # Print shift register seed vector (binary)
+        print('SEED (BINARY):', self.pretty_print(self.seed))
 
-        # For each row in the transition matrix...
-        for row in self.T:
+        # Print seed state vector (as integer)
+        print('SEED (DECIMAL): ', self.seed)
 
-            # Print row (indented)
-            print('      ', vec2str(row))
+        # Print shift register seed vector (hexadecimal)
+        print('SEED (HEXADECIMAL):', hex(self.seed))
 
-        # Separation of LFSR summary from anything printed after
+        # Separator
+        print('__________________________________________________')
+
+        # Print shift register state vector (binary)
+        print('STATE (BINARY):', self.pretty_print(self.state))
+
+        # Print shift register state vector (int format)
+        print('STATE (DECIMAL):', self.state)
+
+        # Print shift register state vector (hexadecimal)
+        print('STATE (HEXADECIMAL):', hex(self.state))
+
+        # Separator
         print('__________________________________________________')
         print('')
 
@@ -532,12 +382,14 @@ class LinearAlgebraicLFSR():
         DESCRIPTION:
         Recurse the linear feedback shift register state vector 1
         cycle (1 epoch). A single cycle corresponds mathematically
-        to multiplication by a companion matrix over Galois field
-        GF(2). In verbose mode, this method prints self.state.
+        to the shifting of the register bits to the right, followed
+        by the XOR'ing of the shifted register atate with the feed-
+        back polynomial mask IF the least significant bit (LSB) is 1.
+        This is repeated for each epoch, with state-printing optional.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LinearAlgebraicLFSR() class instance
-        :type self: __main__.LinearAlgebraicLFSR
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
         :param num_epoch: number of epochs/cycles to recurse LFSR by
         :type num_epoch: int
         :param verbose: controls the printing of self.state
@@ -555,13 +407,13 @@ class LinearAlgebraicLFSR():
             if verbose:
 
                 # Print state vector as string...
-                print(vec2str(self.state))
+                print(self.pretty_print(self))
 
     #####################################################
     # Stream bit(s) from linear feedback shift register #
     #####################################################
 
-    def stream(self, num_bits=1, tap=-1):
+    def stream(self, num_bits=1, stream_type='array', tap=0x1):
         """
         DESCRIPTION:
         Stream 1 or more bits from the linear feedback shift register
@@ -575,11 +427,13 @@ class LinearAlgebraicLFSR():
         Otherwise, this function returns a numpy array of integers.
 
         INPUTS & OUTPUTS:
-        :param self: this particular LinearAlgebraicLFSR() class instance
-        :type self: __main__.LinearAlgebraicLFSR
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
         :param num_bits: # of epochs <==> # of bits output
         :type num_bits: int
-        :param tap: state index tapped to produce stream
+        :param stream_type: specify output as either 'str' or 'array'
+        :type num_bits: str
+        :param tap: mask to logical AND w/ to tap register for stream
         :type tap: int
         :returns: nothing is returned by this method
         :rtype: None
@@ -587,13 +441,6 @@ class LinearAlgebraicLFSR():
         ###################
         # Validate inputs #
         ###################
-
-        # Invalid tap index
-        if tap >= self.N:
-
-            # Print a warning about invalid tap
-            print('Invalid tap index: must be <= self.N.')
-            return None
 
         # Invalid number of bits?...
         if num_bits < 1:
@@ -612,24 +459,54 @@ class LinearAlgebraicLFSR():
             # Cycle LFSR 1x (i.e., single epoch)
             self.recurse() # (default: num_epoch=1)
 
-            # Return tapped state vector bit (as int)
-            return int(self.state[tap]) # (0 or 1)
+            # Return bit string...
+            if stream_type == 'str':
 
-        # Binary stream storage
-        buffer = zeros([num_bits,], dtype='uint64')
+                # Return tapped state vector bit (as str)
+                return str(int((self.state & tap) > 0))
+
+            # Return bit array...
+            if stream_type == 'array':
+
+                # Return tapped state vector bit (as int)
+                return int((self.state & tap) > 0)
 
         ###########################################
         # Stream & buffer multiple bits from LFSR #
         ###########################################
 
-        # For each n'th bit required...
-        for n in range(num_bits):
+        # Return binary string...
+        if stream_type == 'str':
 
-            # Cycle LFSR 1x (i.e., single epoch)
-            self.recurse() # (default: num_epoch=1)
+            # Binary stream storage
+            buffer = ''
 
-            # Return tapped state vector bit (as int)
-            buffer[n] = int(self.state[tap]) # (0 or 1)
+            # For each n'th bit required...
+            for n in range(num_bits):
 
-        # Return buffered bit stream
-        return buffer
+                # Cycle LFSR 1x (i.e., single epoch)
+                self.recurse() # (default: num_epoch=1)
+
+                # Return tapped state vector bit (as int)
+                buffer += self.pretty_print(self.state)
+
+            # Return buffered bit stream
+            return buffer
+
+        # Return binary array...
+        if stream_type == 'array':
+
+            # Binary stream storage
+            buffer = zeros([num_bits,], dtype='uint64')
+
+            # For each n'th bit required...
+            for n in range(num_bits):
+
+                # Cycle LFSR 1x (i.e., single epoch)
+                self.recurse() # (default: num_epoch=1)
+
+                # Return tapped state vector bit (as int)
+                buffer[n] = int((self.state & tap) > 0) # (0 or 1)
+
+            # Return buffered bit stream
+            return buffer
