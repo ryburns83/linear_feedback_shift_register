@@ -182,6 +182,7 @@ class LFSR():
     - summary()
     - cycle()
     - stream()
+    - m_sequence()
     """
     #############################
     # LFSR constructor function #
@@ -432,11 +433,11 @@ class LFSR():
         :param num_bits: # of epochs <==> # of bits output
         :type num_bits: int
         :param stream_type: specify output as either 'str' or 'array'
-        :type num_bits: str
+        :type stream_type: str
         :param tap: mask to logical AND w/ to tap register for stream
         :type tap: int
-        :returns: nothing is returned by this method
-        :rtype: None
+        :returns: buffered LFSR bits of some kind (string or array)
+        :rtype: str, int, or numpy.ndarray
         """
         ###################
         # Validate inputs #
@@ -510,3 +511,28 @@ class LFSR():
 
             # Return buffered bit stream
             return buffer
+
+    ##############################################
+    # Stream a maximum 2^self.N bit(s) from LFSR #
+    ##############################################
+
+    def m_sequence(self, stream_type='array'):
+        """
+        DESCRIPTION:
+        This method assumes that the LFSR() class is able to produce an
+        m-sequence in the first place; that is, that its feedback taps are
+        defined via a primitive polynomial with coefficients in GF(2). For
+        a polynomial of degree self.N (i.e., the order of the linear feedback
+        shift register, its length in bits), the recursion produces a stream
+        of bits which has maximal period of 2^self.N - 1 bits. A full period
+        is returned, so this can be quite a bit of data for a large self.N.
+
+        INPUTS & OUTPUTS:
+        :param self: this particular LFSR() class instance
+        :type self: __main__.LFSR
+        :param stream_type: specify output as either 'str' or 'array'
+        :type stream_type: str
+        :returns: buffered m-sequence of some kind (string or array)
+        :rtype: str, int, or numpy.ndarray
+        """
+        return self.stream(2**self.N - 1, stream_type=stream_type)
