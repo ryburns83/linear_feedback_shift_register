@@ -8,10 +8,11 @@ This module contains functions for the manipulation of matrix and scalar
 variables over the Galois field GF(2)--that is, integers modulo 2: {0,1}.
 
 FUNCTIONS IN MODULE:
-- companion_matrix()
-- matmul_gf2()
-- matmul_gf2_recursion()
-- matrix_power_gf2()
+- read_polynomials_from_file()
+- hex2bin()
+- str2vec()
+- vec2str()
+- int2bin()
 """
 ###############################################################################
 #                            Import dependencies                              #
