@@ -7,7 +7,7 @@ DESCRIPTION:
 This module contains functions for the visualization of a linear feedback
 shift register (LFSR) being estimated by a feedforward binary neural network.
 The main focus of this module is the plotting functionality, assuming much of
-theactual  math of the shift register and neural net is handled externally.
+theactual math of the shift register and neural net is handled externally.
 
 FUNCTIONS IN MODULE:
 - num2cmap()
@@ -25,6 +25,7 @@ FUNCTIONS IN MODULE:
 - draw_layer1_linkages()
 - draw_network_wiring()
 - init_network_diagram()
+- animate()
 """
 ###############################################################################
 #                            Import dependencies                              #
@@ -825,4 +826,94 @@ def init_network_diagram(model, config, seed_bits,
         markersize=config['node_size'])
 
     # Return network node plots/artists
+    return input_nodes, hidden_nodes, output_nodes, decision_nodes,
+
+###############################################################################
+#  Animation recursion/update func. for LFSR --> feedforward network diagram  #
+###############################################################################
+
+def animate(n, input_states, output_activations, hidden_activations, cmap,
+            input_nodes, hidden_nodes, output_nodes, decision_nodes,):
+    """
+    DESCRIPTION:
+    This function accepts an animation frame index n, which is used to index
+    into arrays {input_states, output_activations, hidden_activations} for
+    update of the {input_nodes, hidden_nodes, output_nodes, decision_nodes}
+    of a binary/sigmoidal, biasless feedforward neural network plotted in
+    some existing matplotlib figure. The nodes are colored according to the
+    valid matplotlib colormap, cmap, provided at input, in addition to the
+    data and matplotlib 'o' marker artists. For each plot artist (1 list of
+    nodes per neural net layer), the node color is sourced from the n'th
+    node value in the neural net / LFSR recursion. The colormap makes use of
+    the fact that sigmoidal layers already map to the unit interval [0,1],
+    which happens to be the region of normalized values that a matplotlib
+    colormap accepts. Color choices for binary values (i.e., the input &
+    output / predicted state bits) are black for a bit value of 1, white for
+    a bit value of zero. This function assumes an equal number of deg nodes
+    in the input, output (activation), and decision (thresholded) layers
+    equal to the order of the LFSR recursion and primitive polynomial degree.
+    The number of hidden layer units is assumed to be different, hence it
+    being given its own separate for-loop for its hue update. When all 4
+    layers of the network have updated, their artists are then returned.
+
+    INPUTS & OUTPUTS:
+    :param n: frame number/index, 1:1 with rows of states & activations
+    :type n: int
+    :param input_states: input layer bits / LFSR state vectors (by row)
+    :type input_states: numpy.ndarray
+    :param output_activations: output layer activations (stored by row)
+    :type output_activations: numpy.ndarray
+    :param hidden_activations: hidden layer activations (stored by row)
+    :type hidden_activations: numpy.ndarray
+    :param cmap: valid matplotlib colormap which accepts values in [0,1]
+    :type cmap: matplotlib.colors.ListedColormap
+    :param input_nodes: list of input layer nodes/LFSR state bits
+    :type input_nodes: list, dtype=matplotlib.lines.Line2D
+    :param hidden_nodes: list of hidden layer (colored) nodes/markers
+    :type hidden_nodes: list, dtype=matplotlib.lines.Line2D
+    :param output_nodes: list of output layer (colored) nodes/markers
+    :type output_nodes: list, dtype=matplotlib.lines.Line2D
+    :param decision_nodes: thresholded decision/prediction layer nodes/bits
+    :output decision_nodes: list, dtype=matplotlib.lines.Line2D
+    :returns: artists for 4 total rows/layers of neural net nodes
+    :rtype: list, dtype=matplotlib.lines.Line2D (x4 outputs)
+    """
+    # Number of input nodes / degree of LFSR recursion polynomial
+    deg = len(input_nodes)
+
+    ########################################################
+    # Update hues of input, output, & decision layer nodes #
+    ########################################################
+
+    # For each k'th input/output/decision node...
+    for k in range(deg):
+
+        # Update hue of k'th input node via LFSR state values
+        input_nodes[deg - k - 1].set_markerfacecolor(
+            'k' if  input_states[n, k] else 'w')
+
+        # Update hue of k'th decision node, thresholding its activation
+        decision_nodes[deg - k - 1].set_markerfacecolor(
+            'k' if output_activations[n, k] >= 0.5 else 'w')
+
+        # Update hue of k'th output node via its activation
+        output_nodes[deg - k - 1].set_markerfacecolor(
+            cmap(1 - output_activations[n, k]))
+
+    #####################################
+    # Update hues of hidden layer nodes #
+    #####################################
+
+    # For each k'th hidden layer node...
+    for k in range(len(hidden_nodes)):
+
+        # Update hue of k'th hidden node via its activation
+        hidden_nodes[deg - k - 1].set_markerfacecolor(
+            cmap(1 - hidden_activations[n, k]))
+
+    ##########################
+    # Return updated artists #
+    ##########################
+
+    # Output the updated plot artists (4 layers of nodes)
     return input_nodes, hidden_nodes, output_nodes, decision_nodes,
