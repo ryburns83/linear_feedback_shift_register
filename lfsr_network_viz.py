@@ -186,9 +186,12 @@ def init_input_nodes(deg, seed_bits, markersize=8):
     :type seed_bits: array-like (e.g., numpy.ndarray or list)
     :param markersize: size of the 'o' marker defining graph input nodes
     :type markersize: int
-    :returns: nothing (this function only plots things)
-    :rtype: None
+    :returns: list of plot objects/artists (plotting nodes of layer)
+    :rtype: list, dtype=matplotlib.lines.Line2D
     """
+    # Initialize storage for plotted nodes
+    nodes = []
+
     # For each n'th bit...
     for n in range(deg):
 
@@ -200,10 +203,13 @@ def init_input_nodes(deg, seed_bits, markersize=8):
         ########################################
 
         # Plot the n'th node in the register seed state
-        plt.plot([n], [0], 'o',
-                 markersize=markersize,
-                 markeredgecolor='k',
-                 markerfacecolor=nth_node_color)
+        nodes.extend(plt.plot([n], [0], 'o',
+                              markersize=markersize,
+                              markeredgecolor='k',
+                              markerfacecolor=nth_node_color))
+
+    # Return plotted layer nodes
+    return nodes,
 
 ###############################################################################
 #  Initialize the hidden nodes (2nd layer) of the feedforward neural network  #
@@ -237,9 +243,12 @@ def init_hidden_nodes(activations, colormap, num_hidden,
     :type y_layer: float
     :param markersize: size of hidden layer node 'o'-marker representations
     :type markersize: int
-    :returns: nothing (this function only plots things)
-    :rtype: None
+    :returns: list of plot objects/artists (plotting nodes of layer)
+    :rtype: list, dtype=matplotlib.lines.Line2D
     """
+    # Initialize storage for plotted nodes
+    nodes = []
+
     # Define colormap via matplotlib
     cmap = plt.get_cmap(colormap)
 
@@ -247,9 +256,13 @@ def init_hidden_nodes(activations, colormap, num_hidden,
     for n in range(num_hidden):
 
         # Plot hidden node @ coordinate (n,y_layer)
-        plt.plot([n * (deg / num_hidden) - 0.25], [y_layer],
-                 'o', markersize=markersize, markeredgecolor='k',
-                 markerfacecolor=cmap(1 - activations[n]))
+        nodes.extend(plt.plot([n * (deg / num_hidden) - 0.25], [y_layer],
+                              'o', markersize=markersize,
+                              markeredgecolor='k',
+                              markerfacecolor=cmap(1 - activations[n])))
+
+    # Return plotted layer nodes
+    return nodes,
 
 ###############################################################################
 #  Initialize the network output/activation node & decision/prediction node   #
@@ -292,9 +305,13 @@ def init_decision_nodes(activations, colormap, num_output,
     :type y_upper: float
     :param markersize: size of activation & thresholded decision nodes
     :type markersize: int
-    :returns: nothing (this function only plots things)
-    :rtype: None
+    :returns: 2 lists of plot objects/artists (plotting nodes of layer)
+    :rtype: list, dtype=matplotlib.lines.Line2D (x2 outputs)
     """
+    # Initialize plotted node storage
+    output_layer_nodes = []
+    decision_layer_nodes = []
+
     # Define colormap via matplotlib
     cmap = plt.get_cmap(colormap)
 
@@ -302,19 +319,25 @@ def init_decision_nodes(activations, colormap, num_output,
     for n in range(num_output):
 
         # Sigmoidal class prediction node
-        plt.plot([n], [y_lower], 'o',
-                 markersize=markersize,
-                 markeredgecolor='k',
-                 markerfacecolor=cmap(1 - activations[num_output - n - 1]))
+        output_layer_nodes.extend(
+            plt.plot(
+                [n], [y_lower], 'o',
+                markersize=markersize,
+                markeredgecolor='k',
+                markerfacecolor=cmap(1 - activations[num_output - n - 1])))
 
         # Binary decision (n'th future LFSR state bit)
         b = 1 if activations[num_output - n - 1] >= 0.5 else 0
 
         # Thresholded bit prediction node
-        plt.plot([n], [y_upper], 'o',
-                 markersize=markersize,
-                 markeredgecolor='k',
-                 markerfacecolor=('k' if b else 'w'))
+        decision_layer_nodes.extend(
+            plt.plot([n], [y_upper], 'o',
+                     markersize=markersize,
+                     markeredgecolor='k',
+                     markerfacecolor=('k' if b else 'w')))
+
+    # Return the node plots/artists
+    return output_layer_nodes, decision_layer_nodes
 
 ###############################################################################
 # Given a colormap & set of model weights, map model weights to color values  #
@@ -763,8 +786,8 @@ def init_network_diagram(model, config, seed_bits,
     :type h_activations: numpy.ndarray
     :param y_activations: output activations of the feedforward network
     :type y_activations: numpy.ndarray
-    :returns: nothing (this function only plots things)
-    :rtype: None
+    :returns: 4 lists of plot objects/artists (plotting nodes of network)
+    :rtype: list, dtype=matplotlib.lines.Line2D (x4 outputs)
     """
     #########
     # Edges #
@@ -778,13 +801,13 @@ def init_network_diagram(model, config, seed_bits,
     #########
 
     # Input LFSR nodes / bits (deg total)
-    init_input_nodes(
+    input_nodes, = init_input_nodes(
         deg=config['deg'],
         seed_bits=seed_bits,
         markersize=config['node_size'])
 
     # Hidden layer nodes (deg total)
-    init_hidden_nodes(
+    hidden_nodes, = init_hidden_nodes(
         activations=h_activations,
         colormap=config['cmap'],
         num_hidden=config['num_hidden'],
@@ -793,10 +816,13 @@ def init_network_diagram(model, config, seed_bits,
         markersize=config['node_size'])
 
     # Output probability + decision nodes
-    init_decision_nodes(
+    output_nodes, decision_nodes, = init_decision_nodes(
         activations=y_activations,
         colormap=config['cmap'],
         num_output=config['num_output'],
         y_lower=config['y_output'],
         y_upper=config['y_decision'],
         markersize=config['node_size'])
+
+    # Return network node plots/artists
+    return input_nodes, hidden_nodes, output_nodes, decision_nodes,
