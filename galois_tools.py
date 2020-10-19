@@ -493,7 +493,7 @@ class LFSR():
                 self.recurse() # (default: num_epoch=1)
 
                 # Return tapped state vector bit (as int)
-                buffer += self.pretty_print(self.state)
+                buffer += self.pretty_print(self.state & tap)
 
             # Return buffered bit stream
             return buffer

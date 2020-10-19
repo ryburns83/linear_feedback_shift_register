@@ -208,7 +208,7 @@ def init_input_nodes(deg, seed_bits, markersize=8):
     for n in range(deg):
 
         # Assign black node for bit=1, white for bit=0
-        nth_node_color = 'k' if seed_bits[deg - n - 1] else 'w'
+        nth_node_color = 'k' if seed_bits[n] else 'w'
 
         ########################################
         # Plot LFSR n'th input node of network #
@@ -336,10 +336,10 @@ def init_decision_nodes(activations, colormap, num_output,
                 [n], [y_lower], 'o',
                 markersize=markersize,
                 markeredgecolor='k',
-                markerfacecolor=cmap(1 - activations[num_output - n - 1])))
+                markerfacecolor=cmap(1 - activations[n])))
 
         # Binary decision (n'th future LFSR state bit)
-        b = 1 if activations[num_output - n - 1] >= 0.5 else 0
+        b = 1 if activations[n] >= 0.5 else 0
 
         # Thresholded bit prediction node
         decision_layer_nodes.extend(
@@ -1128,15 +1128,15 @@ def animate(n, input_states, output_activations, hidden_activations,
     for k in range(deg):
 
         # Update hue of k'th input node via LFSR state values
-        input_nodes[deg - k - 1].set_markerfacecolor(
+        input_nodes[k].set_markerfacecolor(
             'k' if  input_states[n, k] else 'w')
 
         # Update hue of k'th decision node, thresholding its activation
-        decision_nodes[deg - k - 1].set_markerfacecolor(
+        decision_nodes[k].set_markerfacecolor(
             'k' if output_activations[n, k] >= 0.5 else 'w')
 
         # Update hue of k'th output node via its activation
-        output_nodes[deg - k - 1].set_markerfacecolor(
+        output_nodes[k].set_markerfacecolor(
             cmap(1 - output_activations[n, k]))
 
     #####################################
@@ -1147,7 +1147,7 @@ def animate(n, input_states, output_activations, hidden_activations,
     for k in range(len(hidden_nodes)):
 
         # Update hue of k'th hidden node via its activation
-        hidden_nodes[deg - k - 1].set_markerfacecolor(
+        hidden_nodes[k].set_markerfacecolor(
             cmap(1 - hidden_activations[n, k]))
 
     ##########################
