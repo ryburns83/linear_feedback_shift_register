@@ -10,7 +10,7 @@ The main focus of this module is the plotting functionality, assuming much of
 theactual  math of the shift register and neural net is handled externally.
 
 FUNCTIONS IN MODULE:
-- num2cmap()
+- feedforward_lfsr_predictor()
 """
 ###############################################################################
 #                            Import dependencies                              #

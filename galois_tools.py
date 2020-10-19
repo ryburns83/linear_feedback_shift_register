@@ -13,6 +13,9 @@ FUNCTIONS IN MODULE:
 - str2vec()
 - vec2str()
 - int2bin()
+
+CLASSES IN MODULE:
+- LFSR()
 """
 ###############################################################################
 #                            Import dependencies                              #
