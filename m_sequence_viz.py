@@ -5,10 +5,17 @@ Ryan Burns
 
 DESCRIPTION:
 This module contains functions for the visualization of m-sequences and
-their associated transforms, distributions, properties, etc.
+their associated transforms, distributions, properties, etc. Also within
+scope are plots relating to the training of a feedforward binary neural net
+to predict m-sequences, representing the underlying LFSR's finite field
+recursion/orbit via latent (weighted) sigmoidal layer connections. While
+it is assumed that much of the math computations happen in other modules,
+this module will be devoted to visualization of the resulting sequences,
+properties, statistics/metrics, etc.
 
 FUNCTIONS IN MODULE:
 - correlation_example()
+- true_vs_predicted_masks()
 """
 ###############################################################################
 #                            Import dependencies                              #
@@ -155,6 +162,85 @@ def correlation_example(m_sequence0, m_sequence1, deg):
 
     # Legend
     plt.legend()
+
+    # Optimize subplot layout
+    plt.tight_layout()
+
+###############################################################################
+#   True LFSR state mask at indices n vs predicted masks at indices (n + 1)   #
+###############################################################################
+
+def true_vs_predicted_masks(idx0, idx1, input_obs, output_activations):
+    """
+    DESCRIPTION:
+    This function plots the true n'th LFSR mask vs time index n (in subplot 1)
+    parallel to the predicted (n + 1)'st LFSR mask (in subplot 2). Technically
+    what are plotted (using a binary colormap) in the later mask image are
+    sigmoidal binary class activations output by a binary feedforward, bias-
+    free 2-layer network for LFSR state prediction. Since the range of the
+    sigmoidal function is the unit interval [0,1], these values are interpret-
+    able as the probability of each bit being 1. Thresholding these values at
+    0.5 would form a decision process on these binary bit predictions / acti-
+    vations, but this function opts to simply plot the activations. The net
+    is assumed to have 100% accuracy in LFSR future state prediction, so its
+    sigmoidal output bit probabilities will extremely close to 0 and 1, resp.
+    This function simply plots the masks in parallel and returns no data. The
+    masks are plotted from input indices idx0 to idx1, with idx0 < idx1.
+
+    INPUTS & OUTPUTS:
+    :param idx0: leading index of the interval plotted of true & predicted
+    :type idx0: int
+    :param idx1: trailing index of the interval plotted of true & predicted
+    :type idx1: int
+    :param input_obs: LFSR state observation sequence (as rows of the array)
+    :type input_obs: numpy.ndarray, dtype=int
+    :param output_activations: neural net's future LFSR state predictions
+    :type output_activations: numpy.ndarray, dtype=float
+    :returns: nothing (this function only plots things)
+    :rtype: None
+    """
+    # Set up shop in new figure
+    plt.figure(figsize=(5.5, 9.9))
+
+    #################################
+    # Left subplot: true LFSR state #
+    #################################
+
+    # New subplot
+    plt.subplot(1, 2, 1)
+
+    # Plot true LFSR bits/mask vs index n
+    plt.imshow(input_obs[idx0:idx1, :],
+               aspect='auto',
+               cmap='binary',
+               interpolation='none')
+
+    # Observation index axis label
+    plt.ylabel(r'Observation Index / Epoch $n$',
+               weight='bold')
+
+    # Current LFSR state footer / label
+    plt.xlabel(r'Observed LFSR State $n$', weight='bold')
+
+    #######################################
+    # Right subplot: predicted LFSR state #
+    #######################################
+
+    # New subplot
+    plt.subplot(1, 2, 2)
+
+    # Image of sigmoidal output activations in [0,1]
+    # (NOTE: Elements will likely be close to 0 and 1.)
+    plt.imshow(output_activations[idx0:idx1, :],
+               aspect='auto', cmap='binary',
+               interpolation='none')
+
+    # Remove right plot's y-ticks
+    plt.yticks([])
+
+    # Predicted state footer / label
+    plt.xlabel(r'Neural Net Predicted State $n + 1$',
+               weight='bold')
 
     # Optimize subplot layout
     plt.tight_layout()
