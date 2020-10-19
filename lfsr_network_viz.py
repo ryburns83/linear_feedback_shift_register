@@ -25,17 +25,28 @@ FUNCTIONS IN MODULE:
 - draw_layer1_linkages()
 - draw_network_wiring()
 - init_network_diagram()
+- init_predicted_state_banner()
+- init_current_state_banner()
+- coeff2polynomial()
+- display_primitive_polynomial()
+- node_coloration_legend()
 - animate()
+- lfsr_prediction_animation()
 """
 ###############################################################################
 #                            Import dependencies                              #
 ###############################################################################
 
 # Numpy functions
+from numpy import arange
 from numpy import max as np_max
 
 # Import pyplot
 from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+# Galois tools
+from galois_tools import int2bin, vec2str, str2vec
 
 ###############################################################################
 #  Map numeric neural network weights to normalized colormap values in [0,1]  #
@@ -131,7 +142,7 @@ def lfsr_xor_connection(n, y_register=0, lw=1, xor_size=8):
     ##############
 
     # Output wire from XOR gate (level w/ register bits)
-    plt.plot([n + 0.6, n + 1], [y_register, y_register], c='k', lw=lw)
+    plt.plot([n + 0.67, n + 1], [y_register, y_register], c='k', lw=lw)
 
 ###############################################################################
 #  Diagram a shift (>>) connection between bits [n, n + 1] in a Galois LFSR   #
@@ -829,11 +840,223 @@ def init_network_diagram(model, config, seed_bits,
     return input_nodes, hidden_nodes, output_nodes, decision_nodes,
 
 ###############################################################################
+#   Init. banner printing predicted LFSR state as bitstring @ epoch (n + 1)   #
+###############################################################################
+
+def init_predicted_state_banner(output_activations, config):
+    """
+    DESCRIPTION:
+    This function accepts the output neural net layer activations and thresh-
+    olds them to form predicted state bits (i.e., at LFSR epoch n + 1). The
+    predicted bits (output of the feedforward net) are then converted from an
+    array representation to a bitstring representation, and positioned at the
+    top of the current axes as a banner with a boldface header. The bitstring
+    banner artist is saved to variable predicted_state and returned for reuse.
+
+    INPUTS & OUTPUTS:
+    :param output_activations: neural net activations of predicted LFSR state
+    :type output_activations: array-like (e.g., numpy.ndarray or list)
+    :param config: configuration panel (dict) for LFSR + neural net diagram
+    :type config: dict
+    :returns: predicted LFSR register state bitstring at epoch n + 1
+    :rtype: matplotlib.text.Text
+    """
+    # Header for predicted LFSR state @ epoch n + 1
+    plt.text(config['x_mid'] - 1.7, config['y_decision'] + 0.14,
+             r'Predicted LFSR State at Epoch $n + 1$', weight='bold')
+
+    # Predicted binary LFSR state at epoch n + 1 as bitstring
+    predicted_state = plt.text(
+        config['x_mid'] - 0.63, config['y_decision'] + 0.08,
+        vec2str([int(activation >= 0.5) for activation in
+                 output_activations[::-1]]))
+
+    # Return predicted state banner
+    return predicted_state
+
+###############################################################################
+# Initialize banner printing current binary LFSR state as bitstring @ epoch n #
+###############################################################################
+
+def init_current_state_banner(register_state, config):
+    """
+    DESCRIPTION:
+    This function accepts the current shift register state vector (i.e., the
+    feedforward binary network's input layer) as an array, along with the con-
+    figuration panel for the diagram of the process. This function converts
+    the array representation of the register state to a bitstring banner. The
+    banner is then positioned at the top of the plot axes, under a boldface
+    header describing what the bitstring is. The bitstring artist is returned.
+
+    INPUTS & OUTPUTS:
+    :param register_state: binary array representation of current LFSR state
+    :type register_state: array-like (e.g., numpy.ndarray or list)
+    :param config: configuration panel (dict) for LFSR + neural net diagram
+    :type config: dict
+    :returns: current (n'th) true LFSR register state as a bitstring banner
+    :rtype: matplotlib.text.Text
+    """
+    # Header for predicted LFSR state @ epoch n
+    plt.text(config['x_mid'] - 1.3, config['y_LFSR_loop'] - 0.18,
+             r'True LFSR State at Epoch $n$', weight='bold')
+
+    # Current binary LFSR state at epoch n as bitstring
+    current_state = plt.text(config['x_mid'] - 0.6,
+                             config['y_LFSR_loop'] - 0.12,
+                             vec2str(register_state[::-1]))
+
+    # Return current state banner
+    return current_state
+
+###############################################################################
+#  LaTeX string representation of a primitive polynomial from binary coeff.   #
+###############################################################################
+
+def coeff2polynomial(coeff):
+    """
+    DESCRIPTION:
+    This function accepts the binary vector (as an array-like type) represen-
+    ting a primitive polynomial over GF(2) and converts it to a LaTeXized
+    string representation x^N + ... + c2 * x^2 + c1 * x + 1.  Since this poly-
+    nomial can only have coefficients 1 or 0, the coefficients are implicitly
+    represented by the presence or absence of each term x^k for bit/tap index
+    k. The polynomial is assumed to always end in a nonzero 0'th order term.
+    This string remapping of binary coefficients to a polynomial is returned.
+
+    INPUTS & OUTPUTS:
+    :param coeff: binary coefficients of the primitive feedback polynomial
+    :type coeff: array-like (e.g., numpy.ndarray or list)
+    :returns: LaTeXized string representation of primitive feedback polynomial
+    :rtype: str
+    """
+    # Infer primitive polynomial degree
+    deg = len(coeff)
+
+    # Initialize polynomial string representation
+    polynomial = r'$' # (LaTeXized)
+
+    # For each n'th binary coefficient...
+    for n, c in enumerate(coeff):
+
+        # c = 1...
+        if c:
+
+            # Add nonzero n'th order term x^n to polynomial str
+            polynomial += r'x^{' + str(int(deg - n)) + '} + '
+
+        # Final n?...
+        if n == deg - 1:
+
+            # Add trailing + 1 scalar to primitive polynomial
+            polynomial += r'1$' # (it's always there)
+
+    # Return polynomial string
+    return polynomial
+
+###############################################################################
+#  Print primitive polynomial defining LFSR feedback on bottom right of plot  #
+###############################################################################
+
+def display_primitive_polynomial(lfsr, config):
+    """
+    DESCRIPTION:
+    This function accepts an LFSR class instance and interprets the integer
+    representation of its primitive feedback polynomial as a binary vector and
+    then converts it to a string of form x^N + ... + c2 * x^2 + c1 * x + 1,
+    which explicitly details the polynomial over GF(2) which defines the LFSR
+    recursion. Since this polynomial can only have coefficients 1 or 0, the
+    coefficients are implicitly represented by the presence or absence of each
+    term x^k for bit/tap index k. The feedback polynomial is printed on the
+    bottom right corner of the current axes, beneath a boldface header.
+
+    INPUTS & OUTPUTS:
+    :param lfsr: configuration panel (dict) for LFSR + neural net diagram
+    :type lfsr: galois_tools.LFSR
+    :returns: nothing (this function only plots things)
+    :rtype None
+    """
+    # Convert integer (base-10) feedback polynomial representation to a
+    # binary tap vector (coeff. of primitive polynomial over GF(2)), then
+    # convert that to a string LaTeXized string polynomial representation
+    polynomial = coeff2polynomial(str2vec(int2bin(
+        lfsr.feedback_polynomial, lfsr.N)))
+
+    # Header for LFSR feedback polynomial display
+    plt.text(lfsr.N - 3.4, config['y_LFSR_loop'] - 0.12,
+             r'Primitive Feedback Polynomial:',
+             weight='bold')
+
+    # Plot LFSR feedback polynomial
+    plt.text(lfsr.N - 2.8, config['y_LFSR_loop'] - 0.18, polynomial)
+
+###############################################################################
+#  Display a node coloration scheme / legend on the bottom left of the plot   #
+###############################################################################
+
+def node_coloration_legend(config, cmap):
+    """
+    DESCRIPTION:
+    This function accepts the plotting config panel of the LFSR & feedforward
+    network visualization and builds out a legend describing the node colora-
+    tion scheme. Black nodes represent a bit value of 1, white nodes repre-
+    sent a bit value of 0. Colorful nodes represent scalar values in the unit
+    interval [0,1], being sigmoidal layer activations in the diagram for which
+    this legend is intended. The legend is plotted at the bottom left.
+
+    INPUTS & OUTPUTS:
+    :param config: configuration panel (dict) for LFSR + neural net diagram
+    :type config: dict
+    :param cmap: valid matplotlib colormap which accepts values in [0,1]
+    :type cmap: matplotlib.colors.ListedColormap
+    :returns: nothing (this function only plots things)
+    :rtype None
+    """
+    # Header for node coloration scheme legend
+    plt.text(-0.34, config['y_LFSR_loop'] - 0.11,
+             r'Node Coloration Scheme:', weight='bold')
+
+    #######################
+    # White node: bit = 0 #
+    #######################
+
+    # Node legend 'o' icon (black node = 1)
+    plt.plot([-0.2], [-0.26], 'o',
+             markersize=config['node_size'],
+             markeredgecolor='k', markerfacecolor='k')
+
+    # Text for node legend (black node = 1)
+    plt.text(-0.1, -0.2725, r'$=1$')
+
+    #######################
+    # Black node: bit = 1 #
+    #######################
+
+    # Node legend 'o' icon (white node = 0)
+    plt.plot([0.5], [-0.26], 'o', markersize=config['node_size'],
+             markeredgecolor='k', markerfacecolor='w')
+
+    # Text for node legend (white node = 0)
+    plt.text(0.6, -0.2725, r'$=0$')
+
+    #################################
+    # Colorful node: float in [0,1] #
+    #################################
+
+    # Node legend 'o' icon (colorful nodes in [0,1])
+    plt.plot([1.2], [-0.26], 'o',
+             markersize=config['node_size'],
+             markeredgecolor='k', markerfacecolor=cmap(0.1))
+
+    # Text for node legend (colorful nodes in [0,1])
+    plt.text(1.3, -0.2725, r'$\in[0,1]$')
+
+###############################################################################
 #  Animation recursion/update func. for LFSR --> feedforward network diagram  #
 ###############################################################################
 
-def animate(n, input_states, output_activations, hidden_activations, cmap,
-            input_nodes, hidden_nodes, output_nodes, decision_nodes,):
+def animate(n, input_states, output_activations, hidden_activations,
+            cmap, input_nodes, hidden_nodes, output_nodes, decision_nodes,
+            current_state_banner, predicted_state_banner):
     """
     DESCRIPTION:
     This function accepts an animation frame index n, which is used to index
@@ -875,11 +1098,27 @@ def animate(n, input_states, output_activations, hidden_activations, cmap,
     :type output_nodes: list, dtype=matplotlib.lines.Line2D
     :param decision_nodes: thresholded decision/prediction layer nodes/bits
     :output decision_nodes: list, dtype=matplotlib.lines.Line2D
+    :param current_state_banner: bitstring banner of current LFSR state
+    :type current_state_banner: matplotlib.text.Text
+    :param predicted_state_banner: bitstring banner of predicted LFSR state
+    :type predicted_state_banner: matplotlib.text.Text
     :returns: artists for 4 total rows/layers of neural net nodes
     :rtype: list, dtype=matplotlib.lines.Line2D (x4 outputs)
     """
     # Number of input nodes / degree of LFSR recursion polynomial
     deg = len(input_nodes)
+
+    ##########################################################
+    # Update banner text for current & predicted LFSR states #
+    ##########################################################
+
+    # Current register state bitstring banner update (@ epoch n)
+    current_state_banner.set_text(vec2str(input_states[n, ::-1]))
+
+    # Predicted register state bitstring banner update (@ epoch n + 1)
+    predicted_state_banner.set_text(
+        vec2str([int(activation >= 0.5) for activation in
+                 output_activations[n, ::-1]]))
 
     ########################################################
     # Update hues of input, output, & decision layer nodes #
@@ -916,4 +1155,121 @@ def animate(n, input_states, output_activations, hidden_activations, cmap,
     ##########################
 
     # Output the updated plot artists (4 layers of nodes)
-    return input_nodes, hidden_nodes, output_nodes, decision_nodes,
+    return input_nodes, hidden_nodes, output_nodes, decision_nodes, \
+           current_state_banner, predicted_state_banner,
+
+###############################################################################
+# Launch LFSR --> feedforward binary neural net (state prediction) animation  #
+###############################################################################
+
+def lfsr_prediction_animation(lfsr, config, model, state_sequence,
+                              hidden_activations, output_activations,
+                              run_animation=True, interval=666,
+                              blit=True, repeat=True):
+    """
+    DESCRIPTION:
+    This function is the parent function of all others in this module, which
+    are collectively organized around the task of diagramming and animating a
+    Galois style linear feedback shift register (LFSR) with arbitrary feedback
+    polynomial as it is fed to a feedforward binary neural net for future LFSR
+    state prediction. This function initializes the diagram components by
+    calling the cascaded functions in this module which construct the compon-
+    ents of the visualization. Finally, an optional animate() function can be
+    called on this diagram to iteratively update the diagram's node coloration
+    and other state-associated variables. This function returns nothing.
+
+    INPUTS & OUTPUTS:
+    :param lfsr: configuration panel (dict) for LFSR + neural net diagram
+    :type lfsr: galois_tools.LFSR
+    :param config: configuration panel (dict) for LFSR + neural net diagram
+    :type config: dict
+    :param model: feedforward binary neural network model for LFSR prediction
+    :type model: tensorflow.keras.models.Model
+    :param state_sequence: LFSR binaray state vector evolution vs. epoch n
+    :type state_sequence: numpy.ndarray
+    :param hidden_activations: neural net hidden layer activations vs. epoch
+    :type hidden_activations: numpy.ndarray
+    :param output_activations: neural net output layer activations vs. epoch
+    :type output_activations: numpy.ndarray
+    :param run_animation: if True, will call animate() function on diagram
+    :type run_animation: bool
+    :param interval: animation's interval (in ms) between frames n, n + 1
+    :type interval: float or int
+    :param blit: controls whether blitting used to optimize animation drawing
+    :type blit: bool
+    :param repeat: controls whether animation repeats upon completion
+    :type repeat: bool
+    :returns: nothing (this function only plots things)
+    :rtype: None
+    """
+    #################################
+    # Initialize plot in new figure #
+    #################################
+
+    # New figure
+    fig = plt.figure(figsize=config['figsize'])
+
+    # Define colormap via matplotlib
+    cmap = plt.get_cmap(config['cmap'])
+
+    # Draw LFSR corrsponding to tap polynomial
+    draw_lfsr(taps=str2vec(int2bin(lfsr.feedback_polynomial, config['deg'])),
+              deg=config['deg'], x_midpt=config['x_mid'],
+              y_register=config['y_input'], y_feedback=config['y_LFSR_loop'],
+              arrow_size=config['arrow_size'], lw=config['link_width'])
+
+    # Initialize neural net drawing
+    input_nodes, hidden_nodes, \
+    output_nodes, decision_nodes, = init_network_diagram(
+        model=model, config=config, seed_bits=state_sequence[0, :],
+        h_activations=hidden_activations[0, :],
+        y_activations=output_activations[0, :])
+
+    # Print primitive feedback polynomial (bottom right)
+    display_primitive_polynomial(lfsr, config)
+
+    # Node coloration scheme legend (bottom left)
+    node_coloration_legend(config, cmap)
+
+    # Initialize banner printing current LFSR state @ epoch n
+    current_state_banner = init_current_state_banner(
+        state_sequence[0, :], config)
+
+    # Initialize banner printing predicted LFSR state @ epoch (n + 1)
+    predicted_state_banner = init_predicted_state_banner(
+        output_activations[0, :], config)
+
+    ###############
+    # Format axes #
+    ###############
+
+    # Vertical axis span
+    plt.ylim(config['ylim'])
+
+    # Remove all axis ticks
+    plt.xticks([])
+    plt.yticks([])
+
+    # Optimize plot layout
+    plt.tight_layout()
+
+    #############
+    # Animation #
+    #############
+
+    # Animation enabled?...
+    if run_animation:
+
+        # Run feedforward LFSR prediction network animation
+        a = FuncAnimation(fig, animate,
+                          fargs=[state_sequence,
+                                 output_activations,
+                                 hidden_activations,
+                                 cmap, input_nodes,
+                                 hidden_nodes,
+                                 output_nodes,
+                                 decision_nodes,
+                                 current_state_banner,
+                                 predicted_state_banner,],
+                          frames=arange(0, 2**config['deg'] - 1),
+                          interval=interval, blit=blit, repeat=repeat)
