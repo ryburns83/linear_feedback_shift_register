@@ -28,6 +28,9 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.metrics import TruePositives, FalsePositives
 from tensorflow.keras.metrics import TrueNegatives, FalseNegatives
 
+# Plotting functionality
+from matplotlib import pyplot as plt
+
 # Galois tools
 from galois_tools import str2vec, int2bin
 
@@ -204,3 +207,132 @@ def register_state_observations(lfsr):
 
     # Return LFSR state sequences
     return X, Y
+
+###############################################################################
+#              Plot {TP,TN,FP,FN} metrics versus training epoch               #
+###############################################################################
+
+def plot_metrics_vs_epoch(model_history, N_epoch):
+    """
+    DESCRIPTION:
+    This function plots true positives (TP), true negatives (TN), false posi-
+    tives (FP), and false negatives (FN) versus training epoch, given a total
+    training epoch count N_epoch and Keras model_history provided at input.
+
+    INPUTS & OUTPUTS:
+    :param model_history: feedforward binary/sigmoidal net training history
+    :type model_history: tensorflow.python.keras.callbacks.History
+    :param N_epoch: number of training epochs (x-axis grid length)
+    :type N_epoch: int
+    :returns: nothing (this function only plots things)
+    :rtype: None
+    """
+    # New figure
+    plt.figure(figsize=(9.9, 6))
+
+    #####################################
+    # True positives vs. training epoch #
+    #####################################
+
+    # New axes
+    ax = plt.subplot(4, 1, 1)
+
+    # Grid current axes
+    plt.grid(c='k', alpha=0.25)
+
+    # Plot true positives (TP) vs training epoch
+    plt.plot(arange(1, N_epoch + 1),
+             model_history.history['true_positives'], c='k')
+
+    # Horizontal axis limits
+    plt.xlim([1, N_epoch])
+
+    # Horizontal axis label
+    plt.xlabel(r'Training Epoch $\varepsilon$')
+
+    # Vertical axis label
+    plt.ylabel(r'TP${}_\varepsilon$')
+
+    # Vertical axis label
+    plt.title(r'True Positives (TP) vs. Training Epoch', weight='bold')
+
+    ######################################
+    # False positives vs. training epoch #
+    ######################################
+
+    # New axes
+    plt.subplot(4, 1, 2, sharex=ax)
+
+    # Grid current axes
+    plt.grid(c='k', alpha=0.25)
+
+    # Plot false positives (FP) vs training epoch
+    plt.plot(arange(1, N_epoch + 1),
+             model_history.history['false_positives'], c='k')
+
+    # Horizontal axis limits
+    plt.xlim([1, N_epoch])
+
+    # Horizontal axis label
+    plt.xlabel(r'Training Epoch $\varepsilon$')
+
+    # Vertical axis label
+    plt.ylabel(r'FP${}_\varepsilon$')
+
+    # Vertical axis label
+    plt.title(r'False Positives (FP) vs. Training Epoch', weight='bold')
+
+    #####################################
+    # True negatives vs. training epoch #
+    #####################################
+
+    # New axes
+    plt.subplot(4, 1, 3, sharex=ax)
+
+    # Grid current axes
+    plt.grid(c='k', alpha=0.25)
+
+    # Plot false positives (FP) vs training epoch
+    plt.plot(arange(1, N_epoch + 1),
+             model_history.history['true_negatives'], c='k')
+
+    # Horizontal axis limits
+    plt.xlim([1, N_epoch])
+
+    # Horizontal axis label
+    plt.xlabel(r'Training Epoch $\varepsilon$')
+
+    # Vertical axis label
+    plt.ylabel(r'TN${}_\varepsilon$')
+
+    # Vertical axis label
+    plt.title(r'True Negatives (TN) vs. Training Epoch', weight='bold')
+
+    ######################################
+    # False negatives vs. training epoch #
+    ######################################
+
+    # New axes
+    plt.subplot(4, 1, 4, sharex=ax)
+
+    # Grid current axes
+    plt.grid(c='k', alpha=0.25)
+
+    # Plot false positives (FP) vs training epoch
+    plt.plot(arange(1, N_epoch + 1),
+             model_history.history['false_negatives'], c='k')
+
+    # Horizontal axis limits
+    plt.xlim([1, N_epoch])
+
+    # Horizontal axis label
+    plt.xlabel(r'Training Epoch $\varepsilon$')
+
+    # Vertical axis label
+    plt.ylabel(r'FN${}_\varepsilon$')
+
+    # Vertical axis label
+    plt.title(r'False Negatives (TN) vs. Training Epoch', weight='bold')
+
+    # Optimize subplot layout
+    plt.tight_layout()
