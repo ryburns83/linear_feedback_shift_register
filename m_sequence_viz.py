@@ -16,13 +16,14 @@ properties, statistics/metrics, etc.
 FUNCTIONS IN MODULE:
 - correlation_example()
 - true_vs_predicted_masks()
+- plot_polynomial_prediction_masks()
 """
 ###############################################################################
 #                            Import dependencies                              #
 ###############################################################################
 
 # Numpy functions
-from numpy import arange, correlate
+from numpy import arange, correlate, hstack, squeeze
 
 # Import pyplot
 from matplotlib import pyplot as plt
@@ -241,6 +242,71 @@ def true_vs_predicted_masks(idx0, idx1, input_obs, output_activations):
     # Predicted state footer / label
     plt.xlabel(r'Neural Net Predicted State $n + 1$',
                weight='bold')
+
+    # Optimize subplot layout
+    plt.tight_layout()
+
+###############################################################################
+#  Plot LFSR state mask sequence @ (n, n + 1) vs. primitive polynomials @ n   #
+###############################################################################
+
+def plot_polynomial_prediction_masks(X, Y):
+    """
+    DESCRIPTION:
+    Plot, in parallel, the flattened state transition (n, n + 1) masks and the
+    corresponding transition polynomial labels, both versus sample index n.
+    This function only plots these 2 masks and does not return anything.
+
+    INPUTS & OUTPUTS:
+    :param X: stacked LFSR states (n, n + 1)--state transitions vs. epoch
+    :type X: numpy.ndarray
+    :param Y: primitive polynomial labels via labeled_state_transition_obs()
+    :type Y: numpy.ndarray
+    :returns: nothing (this function only plots things)
+    :rtype: None
+    """
+    # New figure
+    plt.figure(figsize=(6, 6))
+
+    ################################################
+    # Plot LFSR state masks for indices (n, n + 1) #
+    ################################################
+
+    # Observed LFSR state subplot
+    ax = plt.subplot(1, 2, 1)
+
+    # Plot concatenated state vector mask (n, n + 1) progressions
+    plt.imshow(hstack((squeeze(X[:, :, 0]), squeeze(X[:, :, 1]))),
+               aspect='auto', interpolation='none', cmap='binary')
+
+    # Title (left subplot)
+    plt.title('Concatenated LFSR\n State Vectors (n, n + 1)', weight='bold')
+
+    # y-label (left subplot)
+    plt.ylabel(r'Observation / Epoch Index $n$')
+
+    # x-label (left subplot)
+    plt.xlabel(r'LFSR State @ Indices $(n, n + 1)$')
+
+    ################################################
+    #  Plot LFSR primitive polynomial progression  #
+    ################################################
+
+    # LFSR recursion polynomial subplot
+    plt.subplot(1, 2, 2, sharey=ax)
+
+    # Plot concatenated recursion polynomial vector mask progression
+    plt.imshow(squeeze(Y), aspect='auto', interpolation='none', cmap='binary')
+
+    # Title (right subplot)
+    plt.title('Primitive Polynomial \n Underlying LFSR State', weight='bold')
+
+    # x-label (right subplot)
+    plt.xlabel(r'LFSR Feedback @ Index $n$')
+
+    # Eliminate ticks from the picture
+    plt.xticks([]) # Horizontal axes
+    plt.yticks([]) # Vertical axes
 
     # Optimize subplot layout
     plt.tight_layout()
