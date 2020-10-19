@@ -1,3 +1,6 @@
+[AUTHOR]:
+Ryan Burns
+
 [NOTEBOOKS]:
 cracking_lfsrs_with_keras_part1.ipynb         (a good starting point)
 
@@ -29,6 +32,3 @@ documentation is inline. This is just for fun. Thanks for visiting!
 [DATA]:
 All data is generated with finite field arithmetic. The coefficients for the shift registers which
 generate this data can be found for primitive polynomial degrees 4-32 at ./primitive_polynomials/.
-
-[AUTHOR]:
-Ryan Burns
