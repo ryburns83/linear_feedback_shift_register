@@ -19,7 +19,7 @@ FUNCTIONS IN MODULE:
 ###############################################################################
 
 # Numpy
-from numpy import zeros, roll, array, vstack
+from numpy import zeros, roll, array, vstack, arange
 
 # Tensorflow/Keras functionality
 from tensorflow.keras.layers import Input, Dense
@@ -228,7 +228,7 @@ def plot_metrics_vs_epoch(model_history, N_epoch):
     :rtype: None
     """
     # New figure
-    plt.figure(figsize=(9.9, 6))
+    plt.figure(figsize=(9.9, 8))
 
     #####################################
     # True positives vs. training epoch #

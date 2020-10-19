@@ -268,8 +268,8 @@ def init_hidden_nodes(activations, colormap, num_hidden,
     for n in range(num_hidden):
 
         # Plot hidden node @ coordinate (n,y_layer)
-        nodes.extend(plt.plot([n * (deg / num_hidden) - 0.25], [y_layer],
-                              'o', markersize=markersize,
+        nodes.extend(plt.plot([n * (deg / num_hidden) - 1 / num_hidden],
+                              [y_layer], 'o', markersize=markersize,
                               markeredgecolor='k',
                               markerfacecolor=cmap(1 - activations[n])))
 
@@ -663,7 +663,7 @@ def draw_layer0_linkages(colors, num_input, num_hidden, y_input=0,
         for m in range(num_hidden):
 
             # Draw link between n'th input & m'th hidden nodes
-            plt.plot([n, m * (num_input / num_hidden) - 0.25],
+            plt.plot([n, m * (num_input / num_hidden) - 1 / num_hidden],
                      [y_input, y_hidden], c=colors[n, m, :],
                      alpha=alpha, lw=lw)
 
@@ -710,7 +710,7 @@ def draw_layer1_linkages(colors, num_hidden, num_output, y_hidden=0.5,
         for m in range(num_output):
 
             # Draw link between n'th input & m'th hidden nodes
-            plt.plot([n * (num_output / num_hidden) - 0.25, m],
+            plt.plot([n * (num_output / num_hidden) - 1 / num_hidden, m],
                      [y_hidden, y_output], c=colors[n, m, :],
                      alpha=alpha, lw=lw)
 
